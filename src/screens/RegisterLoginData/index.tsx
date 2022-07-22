@@ -18,11 +18,15 @@ import {
 } from './styles';
 import { StackNavigationProp } from '@react-navigation/stack';
 
-interface FormData {
-  service_name: string;
-  email: string;
-  password: string;
-}
+// interface FormData {
+//   service_name: string;
+//   email: string;
+//   password: string;
+// }
+
+export type FormData = {
+  [x: string]: any;
+} 
 
 const schema = Yup.object().shape({
   service_name: Yup.string().required('Nome do serviço é obrigatório!'),
@@ -38,26 +42,50 @@ type RootStackParamList = {
 type NavigationProps = StackNavigationProp<RootStackParamList, 'RegisterLoginData'>;
 
 export function RegisterLoginData() {
-  const { navigate } = useNavigation<NavigationProps>()
+  const { navigate } = useNavigation<NavigationProps>();
   const {
     control,
     handleSubmit,
     formState: {
       errors
     }
-  } = useForm({
+  } = useForm<FormData>({
     resolver: yupResolver(schema)
   });
 
-  async function handleRegister(formData: FormData) {
+  // const {
+  //   handleSubmit,
+  // } = useForm<FormData>({
+  //   resolver: yupResolver(schema)
+  // });
+
+  async function handleRegister(form: FormData) {
     const newLoginData = {
       id: String(uuid.v4()),
-      ...formData
+      ...form
     }
 
     const dataKey = '@savepass:logins';
 
     // Save data on AsyncStorage and navigate to 'Home' screen
+    try {
+      const response = await AsyncStorage.getItem(dataKey);
+      const currentData = response ? JSON.parse(response) : [];
+      const newData = [
+          ...currentData,
+          newLoginData
+      ];
+
+      await AsyncStorage.setItem(dataKey, JSON.stringify(newData));
+      
+      //resetFields();
+      
+      navigate('Home');
+
+    } catch (error) {
+        console.log(error);
+        Alert.alert('Não foi possível salvar os dados!');
+    }
   }
 
   return (
@@ -73,10 +101,7 @@ export function RegisterLoginData() {
             testID="service-name-input"
             title="Nome do serviço"
             name="service_name"
-            error={
-              // Replace here with real content
-              'Has error ? show error message'
-            }
+            error={errors.service_name && errors.service_name.message}
             control={control}
             autoCapitalize="sentences"
             autoCorrect
@@ -86,8 +111,7 @@ export function RegisterLoginData() {
             title="E-mail ou usuário"
             name="email"
             error={
-              // Replace here with real content
-              'Has error ? show error message'
+              errors.email && errors.email.message
             }
             control={control}
             autoCorrect={false}
@@ -100,7 +124,7 @@ export function RegisterLoginData() {
             name="password"
             error={
               // Replace here with real content
-              'Has error ? show error message'
+              errors.password && errors.password.message
             }
             control={control}
             secureTextEntry
@@ -110,8 +134,8 @@ export function RegisterLoginData() {
             style={{
               marginTop: RFValue(8)
             }}
-            title="Salvar"
             onPress={handleSubmit(handleRegister)}
+            title="Salvar"
           />
         </Form>
       </Container>
